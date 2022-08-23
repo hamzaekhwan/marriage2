@@ -8,22 +8,59 @@ from rest_framework.response import *
 from datetime import datetime
 from polls.serializers import  *
 from django.http import JsonResponse
-@api_view(['POST'])
-def invite_request(request): 
-    data=request.data
-    maleName=data["maleName"]
-    femaleName=data["femaleName"]
-    location=data["location"]
-    clock= data["clock"]
-    date=data["date"]
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
 
-    requests=inviteMarried_request.objects.filter(maleName=maleName,femaleName=femaleName)
-    if requests.exists():
-        return Response({'result':'تم انشاء الدعوة مسبقا '})
+        
+        serializer = UserSerializerWithToken(self.user).data
+        print(serializer)
+        for k, v in serializer.items():
+            data[k] = v
+        data["detail"]="ok"
+        print(data)
+        return data
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer     
+
+
+
+
+@api_view(['POST'])
+def make_invite(request):
+    print(request.data)
+    serializer=inviteMarried_requestSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response ({"success":"True"})
     else:
-        p=inviteMarried_request(maleName=maleName,femaleName=femaleName,location=location,clock=clock,date=date)
-        p.save()
-        return Response({'result':'تم انشاء الدعوة بنجاح'})
+          return Response(   { "success":"fail", "error":serializer.errors } )
+    # invite_id = request.data['invite_id']
+    # invite_image = inviteMarried_request.objects.get(id=invite_id)
+    # invite_image.image =request.FILES.get('image')
+    # invite_image.save()
+    # return Response('Image was uploaded')
+
+# @api_view(['POST'])
+# def invite_request(request): 
+#     data=request.data
+#     maleName=data["maleName"]
+#     femaleName=data["femaleName"]
+#     location=data["location"]
+#     clock= data["clock"]
+#     date=data["date"]
+
+#     requests=inviteMarried_request.objects.filter(maleName=maleName,femaleName=femaleName)
+#     if requests.exists():
+#         return Response({'result':'تم انشاء الدعوة مسبقا '})
+#     else:
+#         p=inviteMarried_request(maleName=maleName,femaleName=femaleName,location=location,clock=clock,date=date)
+#         p.save()
+#         return Response({'result':'تم انشاء الدعوة بنجاح'})
 @api_view(['POST'])
 def details(request): 
     data=request.data
@@ -38,9 +75,10 @@ def my_invites(request):
         serializer = inviteMarried_requestSerializer(invites, many=True)
         a=[]
         for i in range(len(invites)):
-
-
-            a.append({"data":serializer.data[i],"result":"أفراح"})
+            a.append({"result":serializer.data[i]})
         return JsonResponse(a,safe=False)    
     except:
-        return Response({"data":" ",'result':'ليس هناك اي دعوات'})
+        return Response({'result':'ليس هناك اي دعوات'})
+
+
+        
